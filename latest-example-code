@@ -1,0 +1,399 @@
+jQuery(function($) {
+	$(".companies.block").fadeIn(1000);
+
+    function getBlur() {
+        $('.sidebar-first, .content, .sidebar-last, .breadcrumb, .header, #sidebarr, .footer').addClass('under-overlay');
+    }
+
+    function removeBlur() {
+        $('.sidebar-first, .content, .sidebar-last, .breadcrumb, .header, #sidebarr, .footer').removeClass('under-overlay');
+    }
+
+    /*	Drag & Drop users */
+    var isDropped = true;
+    $("#pracownicy-block li").draggable({
+        revert: true
+    });
+    $("#szkolenia-block li").draggable({
+        revert: true,
+        start: function() {
+            isDropped = false;
+        }
+    });
+    var $droppable = $("#dep li");
+    $droppable.droppable({
+        accept: ".user-item, .course-item",
+        drop: function(event, ui) {
+
+            var userId = $(ui.draggable).attr('id'); //user id
+            var departmentId = $(this).attr('id'); //department id
+            var currentId = $(ui.draggable).attr('id'); //course id
+            var type = $(ui.draggable).attr('dtype');
+            //console.log(currentId);
+            //$(this).droppable("destroy");
+            var d = $(this);
+
+            if (type == "user") {
+
+                $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=addUserToGroup&uid=" + userId + "&gid=" + departmentId, function(data) {
+                    if (($.trim(data['status'])) == 'exists') {
+                        d.find('span.department-item')[0].addClass('failed');
+                        setTimeout(function() {
+                            d.find('span.department-item')[0].removeClass('failed');
+                        }, 3000);
+                    } else if (($.trim(data['status'])) == 'added') {
+                        d.find('span.department-item')[0].addClass('success');
+                        setTimeout(function() {
+                            d.find('span.department-item')[0].removeClass('success');
+                        }, 3000);
+                    }
+                });
+
+            } else if (type == "course") {
+                if (!isDropped) {
+
+                    $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=assignToCourse&cid=" + userId + "&gid=" + departmentId, function(data) {
+
+                        //console.log("dropped");
+                        if (($.trim(data['status'])) == 'success') {
+                            //d.find('span.department-item').addClass('success');
+                            setTimeout(function() {
+                                //d.find('span.department-item').removeClass('success');
+                                var docHeight = $(window).height(); //grab the height of the page
+                                var scrollTop = $(window).scrollTop(); //grab the px value from the top of the page to where you're scrolling
+                                var selectedPopup = $(this).data('showpopup'); //get the corresponding popup to show
+
+                                $('.overlay-bg').show().css({
+                                    'height': docHeight
+                                }); //display your popup and set height to the page height
+                                getBlur();
+                                $('#show-users').show();
+                                $('#show-users').text(" ");
+                                $('#show-users').append("Dodałeś Szkolenie do grupy!");
+
+                                $('#show-users').css({
+                                    'top': 50 + 'px'
+                                });
+
+                            }, 500);
+                        }
+
+                    });
+
+                }
+                isDropped = true;
+            }
+        }
+    });
+
+    var maxHeight = $('.row-fluid').height();
+    $('.rounded-column').css('height', maxHeight);
+
+    $("#pracownicy-link").addClass("active");
+
+
+    $("#pracownicy-link").click(function(e) {
+        e.preventDefault();
+        $("#szkolenia-block").fadeOut();
+        $("#pracownicy-block").fadeIn();
+
+        $("#szkolenia-link").removeClass("active");
+
+        $(this).addClass("active");
+    });
+
+    $("#szkolenia-link").click(function(e) {
+        e.preventDefault();
+        $("#pracownicy-block").fadeOut();
+        $("#szkolenia-block").fadeIn();
+
+
+        $("#pracownicy-link").removeClass("active");
+
+        $(this).addClass("active");
+    });
+
+    /* ************ show users in overlay window. ************ */
+    $('.users-item').click(function() {
+        var groupId = $(this).parent().parent().attr("id");
+        var docHeight = $(window).height(); //grab the height of the page
+        var scrollTop = $(window).scrollTop(); //grab the px value from the top of the page to where you're scrolling
+        var selectedPopup = $(this).data('showpopup'); //get the corresponding popup to show
+
+        $('.overlay-bg').show().css({
+            'height': docHeight
+        }); //display your popup and set height to the page height
+        getBlur();
+
+        $('#show-users').show();
+        $('#show-users-content').text(" ");
+        $('#show-users-content').append("<ul class='unstyled all-user-list'>");
+
+        $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=getUsersFromGroup&gid=" + groupId, function(data) {
+            data.forEach(function(r) {
+                //console.log(r.thumb);
+                if ((r.thumb == null) || (r.thumb == "")) {
+                    $(".all-user-list").append("<li id=" + r.id + " class='user-item'><span class='no-pic'>" + r.name + "</span><i class='icon-remove delete-user'></i> </li>");
+                } else {
+                    var imgsrc = r.thumb;
+                    if (imgsrc.indexOf("http://") == -1)
+                        imgsrc = "/" + imgsrc;
+                    $(".all-user-list").append("<li id=" + r.id + " class='user-item'><span>" + r.name + "</span><span><img class='user-profile-pic' src='" + imgsrc + "' alt='Profile picture " + r.id + "'></span> <i class='icon-remove delete-user'></i> </li>");
+                    console.log('2');
+                }
+
+
+            });
+            $('#show-users-content').append("</ul>");
+            $("#show-users-content ul").attr('id', groupId);
+        });
+        $('#show-users').css({
+            'top': 50 + 'px'
+        }); //set the content 20px from the window top
+    });
+
+    // hide popup when user clicks on close button
+    $('#close-users').click(function() {
+        $('.overlay-bg, #show-users').hide(); // hide the overlay
+        removeBlur();
+    });
+
+    // hides the popup if user clicks anywhere outside the container
+    $('.overlay-bg').click(function() {
+            $('.overlay-bg, #show-users').hide();
+            removeBlur();
+        })
+        // prevents the overlay from closing if user clicks inside the popup overlay
+    $('#show-users').click(function() {
+        return false; // PLEASE NOTE: Adding this will prevent normal links to work inside the popup
+        removeBlur();
+    });
+
+    /* ************ Remove users ************ */
+
+    $('#show-users').on("click", ".delete-user", function() {
+        var id = $(this).parent().attr('id');
+        var title = $(this).parent().attr('title');
+        var liElement = $(this).parent();
+        var groupId = $(this).parent().parent().attr('id');
+
+        if (confirm("Czy na pewno chcesz wypisać użytkownika z tej grupy?") == true) {
+            $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=removeUserFromGroup&uid=" + id + "&gid=" + groupId, function(data) {
+                if (($.trim(data['status'])) == 'removed') {
+                    liElement.remove();
+                }
+            });
+        }
+    });
+
+    /* ************ EOF remove users ************ */
+
+    /* ************ ADD department ************ */
+    $('.add-item-department').click(
+        function() {
+            var pId = $(this).parent().parent().attr("id");
+            var docHeight = $(window).height();
+            var scrollTop = $(window).scrollTop();
+            var selectedPopup = $(this).data('showpopup');
+
+            $('#err, #succ').text(" ");
+            $('.overlay-bg').show().css({
+                'height': docHeight
+            });
+            getBlur();
+            $('#add-department').show();
+
+            $('#add-department').on("click", "#submit", function() {
+                if (!($("input[name=department-name]:text").val())) {
+                    $('#add-department').find("#err").text(" Nie wypełniłeś pola.");
+                } else {
+                    $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=addGroup&name=" + $("input[name=department-name]").val() + "&pid=" + pId, function(data) {
+                        if (($.trim(data['status'])) == 'added') {
+                            setTimeout(function() {
+                                $('#add-department').find("#succ").text("Dodano poprawnie");
+								$('.mybtn').hide();
+                                $('#add-department').css('cursor', 'wait');
+                                $('.btn').prop('disabled', true);
+                                location.reload();
+                            }, 1000);
+
+                        } else if (($.trim(data['status'])) == 'exists') {
+                            $('#add-department').find("#warn").text("Taka nazwa już istnieje. Podaj inną i spróbuj ponownie.");
+                        }
+                    });
+                }
+				
+            });
+			
+            $('#add-department').css({
+                'top': 50 + 'px'
+            });
+        });
+
+    $('#close-form').click(function() {
+        $('.overlay-bg, #add-department').hide();
+        removeBlur();
+		$('#add-department').off("click", "#submit");
+    });
+    $('.overlay-bg').click(function() {
+        $('.overlay-bg, #add-department').hide();
+        removeBlur();
+		$('#add-department').off("click", "#submit");
+    })
+    $('#add-department').click(function() {
+        return false;
+    });
+
+    /* ************ Remove departments ************ */
+
+    $('.remove-department').click(
+        function() {
+            var id = $(this).parent().parent().attr('id');
+            var title = $(this).parent().parent().attr('title');
+            var liElement = $(this).parent().parent();
+            //console.log(liElement);
+            if (confirm("Czy na pewno chcesz usunąć ten dział ? ") == true) {
+                $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=removeGroup&gid=" + id, function(data) {
+                    console.log(data);
+                    if (($.trim(data['status'])) == 'removed') {
+
+                        $('.sidebar-first, .content, .sidebar-last').addClass('under-overlay');
+                        $('.overlay-bg').show();
+                        getBlur();
+                        location.reload();
+                    }
+                });
+            }
+        });
+        
+    /*email-validation*/
+    function validateEmail(email) {
+        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        return re.test(email);
+    }
+
+    /*add user*/
+
+    $('.add-item-user').click(
+        function() {
+
+
+            var docHeight = $(window).height();
+            var scrollTop = $(window).scrollTop();
+            var selectedPopup = $(this).data('showpopup');
+            var compId = $('span.company-item').attr('id');
+
+            $('.overlay-bg').show().css({
+                'height': docHeight
+            });
+            getBlur();
+            $('#add-user').show();
+            $('#roles').hide();
+            $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=getCompanies", function(data) {
+
+                data.forEach(function(r) {
+                    $("#companies").append("<option value=" + r.id + ">" + r.title + "</option> ");
+
+                });
+            });
+
+            var isAdmin = 0;
+
+            $.getJSON("/index.php/pl/?option=com_pmcmanager&view=ajax&mode=isAdmin", function(data) {
+                console.log(data.isAdmin);
+                if (data.isAdmin == "true") {
+                    $('#roles').show();
+                    isAdmin = 1;
+                }
+
+            });
+
+            $("#save-user").click(function() {
+
+                $('#add-user').find("#err").text(" ");
+                $('#add-user').find("#succ").text(" ");
+
+                var name = $('#user-name-field').val();
+                var lname = $('#user-lname-field').val();
+                var email = $('#user-email').val();
+
+                if (!name || !lname || !validateEmail(email)) {
+                    $('#add-user').find("#err").text(" Wypełnij pola.");
+                } else {
+
+                    var url = "/index.php/pl/?option=com_pmcmanager&view=ajax&mode=addUser&gid=";
+                    //gid name lname mail namager 
+                    if (isAdmin) {
+                        url += $('#companies').val();
+                    } else {
+                        url += compId;
+                    }
+                    url += "&manager=";
+                    if (isAdmin) {
+                        url += $('#role').val();
+                    } else {
+                        url += '0';
+                    }
+
+                    url += "&name=" + $('#user-name-field').val();
+                    url += "&lname=" + $('#user-lname-field').val();
+                    url += "&mail=" + $('#user-email').val();
+
+
+                    console.log(url);
+                    // $('#add-user').find("#succ").text("Dodano.");
+
+                    $.getJSON(url, function(data) {
+                        console.log(data);
+                        if (data.Error == "none") {
+                            $('#add-user').find("#succ").html(" Pomyślnie utworzono użytkownika o id:" + data.uid + "<br/> Dane logowania: <br/> Login: " + data.login + "<br/>Hasło:" + data.password);
+                        } else {
+                            $('#add-user').find("#err").text("Wystapil blad:" + data.error);
+                        }
+
+                    });
+                }
+            });
+
+            $('#add-user').css({
+                'top': 50 + 'px'
+            }); //set the content 20px from the window top
+        });
+
+    $('#close-user-form').click(function() {
+        $('.overlay-bg, #add-user').hide();
+        removeBlur();
+		$("#save-user").off();
+		$("#companies").html("");
+    });
+    $('.overlay-bg').click(function() {
+        $('.overlay-bg, #add-user').hide();
+        removeBlur();
+		$("#save-user").off();
+		$("#companies").html("");
+    });
+    $('#add-user').click(function() {
+        return false;
+    });
+    $('#checkbox').click(function() {
+        return true;
+    });
+    /*eof*/
+
+    /* list for user form */
+
+    $(".filterinput").on('input', function() {
+        $("#list .user-item").each(function() {
+            if ($(this).text().trim().toLowerCase().indexOf($(".filterinput").val().toLowerCase()) == -1) {
+                $(this).css("display", "none");
+            } else {
+                $(this).css("display", "block");
+            }
+        });
+    });
+
+	$(".line").each(function(){
+  $(this).height(jQuery(this).parent().height()-85);
+});
+
+});  
