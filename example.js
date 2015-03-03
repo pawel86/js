@@ -1,3 +1,22 @@
+/*example code*/
+
+function showNoGameError() {
+	if(window.location.pathname == /games/) {
+		var numberItems = 0;
+		var numberDisabled = 0;
+		$('.gameitem').each(function (index) {
+			numberItems++;
+			if ($(this).hasClass("disabled")) {
+				numberDisabled++;
+			}
+		});
+		if($('.gameitem').each > 0) {
+			console.log('we dont have games like your search');
+		}
+	}
+}
+showNoGameError();
+				
 d2d.analogmeasure=function()
 {
 	d2d.ImageFigure.call(this,"measurments/Analogmeasure.png");
